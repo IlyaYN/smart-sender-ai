@@ -1,0 +1,12 @@
+# --- СЕКРЕТНЫЕ ДАННЫЕ (НЕ ПУБЛИКОВАТЬ!) ---
+senders.json
+keys.json
+history.json
+.env
+
+# --- Системный мусор Python и ОС ---
+__pycache__/
+*.pyc
+.venv/
+venv/
+.DS_Store

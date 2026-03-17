@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Smart Sender AI - Pro System</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #f0f2f5; margin: 0; padding: 20px; display: flex; justify-content: center; }
+        .card { background: white; padding: 2.5rem; border-radius: 1.5rem; box-shadow: 0 10px 30px rgba(0,0,0,0.08); width: 100%; max-width: 700px; }
+        h1 { text-align: center; color: #1a1a1a; margin-bottom: 5px; }
+        .tabs { display: flex; border-bottom: 2px solid #edf2f7; margin-bottom: 25px; }
+        .tab { flex: 1; text-align: center; padding: 12px; cursor: pointer; font-weight: bold; color: #a0aec0; border-bottom: 3px solid transparent; transition: 0.3s; font-size: 0.95rem; }
+        .tab.active { color: #8b5cf6; border-bottom-color: #8b5cf6; }
+        .section { display: none; }
+        .section.active { display: block; animation: slideUp 0.3s ease; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        label { display: block; margin-bottom: 8px; font-weight: 600; color: #4a5568; font-size: 0.9rem; }
+        input, textarea, select { width: 100%; padding: 12px 16px; margin-bottom: 20px; border: 1px solid #e2e8f0; border-radius: 12px; box-sizing: border-box; font-size: 1rem; transition: 0.2s; background: white; }
+        input:focus, textarea:focus, select:focus { border-color: #8b5cf6; box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1); outline: none; }
+        .btn-purple { width: 100%; background: #8b5cf6; color: white; border: none; padding: 16px; border-radius: 12px; font-weight: bold; cursor: pointer; font-size: 1rem; transition: 0.3s; }
+        .btn-purple:hover { background: #7c3aed; transform: translateY(-1px); }
+        .sender-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; background: #f8fafc; border-radius: 12px; margin-bottom: 10px; border: 1px solid #edf2f7; word-break: break-all; gap: 10px; }
+        .btn-toggle { padding: 8px 16px; border-radius: 8px; border: none; cursor: pointer; font-weight: bold; color: white; transition: 0.2s; white-space: nowrap; }
+        .btn-green { background: #48bb78; } .btn-red { background: #f56565; } .btn-gray { background: #718096; } .btn-blue { background: #3b82f6; }
+        .status-box { margin-top: 25px; padding: 20px; border-radius: 12px; text-align: center; font-weight: bold; display: none; line-height: 1.5; }
+        .ai-badge { background: linear-gradient(135deg, #8b5cf6, #3b82f6); color: white; padding: 3px 8px; border-radius: 6px; font-size: 0.7rem; vertical-align: middle; margin-left: 5px; }
+        .settings-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 20px; border-radius: 12px; margin-bottom: 25px; }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: white; padding: 30px; border-radius: 15px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; position: relative; font-size: 1rem; line-height: 1.6; }
+        .close-btn { position: absolute; top: 15px; right: 20px; cursor: pointer; font-size: 24px; font-weight: bold; color: #a0aec0; }
+        .close-btn:hover { color: #1a1a1a; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>✨ Smart Sender <span class="ai-badge">Pro System</span></h1>
+        <div class="tabs">
+            <div id="t-send" class="tab active" onclick="nav('send')">📝 Рассылка</div>
+            <div id="t-list" class="tab" onclick="nav('list')">⚙️ Ящики</div>
+            <div id="t-keys" class="tab" onclick="nav('keys')">🔑 API Ключи</div>
+            <div id="t-hist" class="tab" onclick="nav('hist')">📊 История</div>
+        </div>
+
+        <div id="s-send" class="section active">
+            <div class="settings-box">
+                <label>🔑 API Ключи ИИ (ротация автоматическая):</label>
+                <div id="keys_status" style="font-size:0.85rem; color:#4a5568; margin-bottom:15px; padding:10px; background:#edf2f7; border-radius:8px;">
+                    Загрузка ключей...
+                </div>
+                <label>Роль нейросети (кто пишет?):</label>
+                <input type="text" id="ai_role" value="профессиональный B2B менеджер">
+                <div style="display:flex; gap:15px;">
+                    <div style="flex:1;"><label>👤 Имя в подписи:</label><input type="text" id="sender_name" value="Иван"></div>
+                    <div style="flex:1;"><label>💼 От кого / Должность:</label><input type="text" id="sender_position" value="Менеджер СРО"></div>
+                </div>
+            </div>
+            <label>1. База (Excel):</label><input type="file" id="excelFile" accept=".xlsx, .xls, .csv">
+            <label>2. Тема письма (можно {company} и {name}):</label>
+            <input type="text" id="subject" placeholder="Напр: Индивидуальное предложение для {company}">
+            <label>3. Задание (Промпт):</label><textarea id="body" rows="6" placeholder="Вставь сюда прайс-лист и суть..."></textarea>
+            
+            <div style="display:flex; gap:15px;">
+                <div style="flex:1;"><label>Мин задержка (сек):</label><input type="number" id="min_d" value="15"></div>
+                <div style="flex:1;"><label>Макс задержка (сек):</label><input type="number" id="max_d" value="30"></div>
+            </div>
+            
+            <button id="btn-start" class="btn-purple" onclick="run()">Сгенерировать и отправить 🚀</button>
+            
+            <div id="controls" style="display:none; gap:15px;">
+                <button id="btn-pause" class="btn-purple" style="flex:1; background:#eab308;" onclick="togglePause()">⏸ Пауза</button>
+                <button id="btn-stop" class="btn-purple" style="flex:1; background:#ef4444;" onclick="stopRun()">⏹ Остановить</button>
+            </div>
+
+            <div id="status" class="status-box"></div>
+        </div>
+
+        <div id="s-list" class="section">
+            <div class="settings-box" style="border-color: #8b5cf6;">
+                <label>Провайдер почты:</label>
+                <select id="provider">
+                    <option value="gmail">Google</option>
+                    <option value="yandex">Yandex</option>
+                    <option value="mailru">Mail.ru</option>
+                </select>
+                <label>Email:</label><input type="email" id="email" placeholder="ivanov@gmail.com">
+                <label>Пароль приложения:</label><input type="password" id="pass" placeholder="xxxx xxxx xxxx xxxx">
+                <button class="btn-purple" onclick="addSender()" style="background:#38a169;">Добавить ящик 💾</button>
+            </div>
+            <div id="listRows">Загрузка...</div>
+        </div>
+
+        <div id="s-keys" class="section">
+            <div class="settings-box" style="border-color: #eab308; background: #fefce8;">
+                <label>Название ключа:</label><input type="text" id="key_name" placeholder="Мой первый ключ">
+                <label>Сам API Ключ:</label><input type="password" id="key_value" placeholder="AIzaSy...">
+                <button class="btn-purple" onclick="addKey()" style="background:#eab308;">Сохранить ключ 🔑</button>
+            </div>
+            <div id="keysRows">Загрузка...</div>
+        </div>
+
+        <div id="s-hist" class="section">
+            <div class="settings-box" style="border-color: #3b82f6; background: #eff6ff;">
+                <h3 style="margin-top:0;">📥 Экспорт отчета в Excel</h3>
+                <div style="display:flex; gap:15px; margin-bottom:10px;">
+                    <div style="flex:1;"><label>С даты:</label><input type="date" id="hist_start"></div>
+                    <div style="flex:1;"><label>По дату:</label><input type="date" id="hist_end"></div>
+                </div>
+                <button class="btn-purple" onclick="exportHistory()" style="background:#3b82f6;">Скачать отчет 📊</button>
+            </div>
+            <p style="font-size: 0.8rem; color: #718096; text-align: center;">Отображаются последние 1000 отправок</p>
+            <div id="histRows">Загрузка истории...</div>
+        </div>
+    </div>
+
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <span class="close-btn" onclick="closeModal()">&times;</span>
+            <h3 style="margin-top:0; color:#2d3748;">📝 Просмотр письма</h3>
+            <div style="background:#edf2f7; padding:10px; border-radius:8px; margin-bottom:15px; font-weight:bold; color:#1a202c;">
+                Тема: <span id="modalSubject" style="font-weight:normal;"></span>
+            </div>
+            <hr style="border:0; border-top:1px solid #e2e8f0; margin-bottom:15px;">
+            <div id="modalBody">Текст...</div>
+        </div>
+    </div>
+
+    <script>
+        let globalHistory = []; let isPaused = false; let isStopped = false; let allApiKeys = [];
+
+        function nav(id) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById('t-'+id).classList.add('active');
+            document.getElementById('s-'+id).classList.add('active');
+            if(id === 'list') loadSenders();
+            if(id === 'keys') loadKeys();
+            if(id === 'send') loadKeysForStatus();
+            if(id === 'hist') loadHistory();
+        }
+
+        function togglePause() {
+            isPaused = !isPaused;
+            const btn = document.getElementById('btn-pause'); const st = document.getElementById('status');
+            if(isPaused) {
+                btn.innerHTML = '▶ Продолжить'; btn.style.background = '#22c55e';
+                st.innerHTML = `⏸ <b>РАССЫЛКА НА ПАУЗЕ</b><br><span style="font-size:0.8rem;">(ожидание команды...)</span>`; st.style.background = '#fefce8';
+            } else {
+                btn.innerHTML = '⏸ Пауза'; btn.style.background = '#eab308';
+                st.innerHTML = `▶ Рассылка продолжается...`;
+            }
+        }
+        function stopRun() { if(confirm("Точно остановить рассылку?")) { isStopped = true; isPaused = false; } }
+
+        async function loadHistory() {
+            const res = await fetch('/get-history'); globalHistory = await res.json();
+            document.getElementById('histRows').innerHTML = globalHistory.map((h, index) => `
+                <div class="sender-item" style="flex-direction: column; align-items: flex-start; gap: 5px;">
+                    <div style="width: 100%; display: flex; justify-content: space-between; align-items: center;">
+                        <div><span style="font-size: 0.8rem; color: #718096;">${h.date}</span><br><b>${h.email}</b></div>
+                        <span style="font-size: 0.85rem; padding: 4px 8px; border-radius: 6px; background: ${h.status.includes('Успешно') ? '#c6f6d5' : '#fed7d7'}; color: ${h.status.includes('Успешно') ? '#2f855a' : '#c53030'}; font-weight: bold;">${h.status}</span>
+                    </div>
+                    <div style="font-size: 0.85rem; color: #4a5568; margin-top: 5px; width: 100%;"><b>Тема:</b> ${h.subject || 'Нет темы'}</div>
+                    <button class="btn-toggle btn-blue" style="width: 100%; margin-top: 5px;" onclick="openModal(${index})">👁 Посмотреть письмо</button>
+                </div>
+            `).join('') || '<p style="text-align:center;color:#718096;">История пока пуста</p>';
+        }
+
+        function openModal(index) { document.getElementById('modalSubject').innerText = globalHistory[index].subject || 'Без темы'; document.getElementById('modalBody').innerHTML = globalHistory[index].body; document.getElementById('emailModal').style.display = 'flex'; }
+        function closeModal() { document.getElementById('emailModal').style.display = 'none'; }
+        function exportHistory() {
+            const start = document.getElementById('hist_start').value; const end = document.getElementById('hist_end').value;
+            if(!start || !end) return alert("Выберите даты!");
+            let filtered = globalHistory.filter(item => { const itemDate = item.date.substring(0, 10); return itemDate >= start && itemDate <= end; });
+            if(filtered.length === 0) return alert("Нет данных!");
+            const excelData = filtered.map(i => ({ "Дата и Время": i.date, "Email": i.email, "Статус": i.status, "Тема": i.subject, "Текст Письма": i.body.replace(/<br>/g, '\n') }));
+            const ws = XLSX.utils.json_to_sheet(excelData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, "История Рассылки"); XLSX.writeFile(wb, `Отчет_${start}_${end}.xlsx`);
+        }
+
+        async function loadSenders() {
+            const res = await fetch('/get-senders'); const data = await res.json();
+            document.getElementById('listRows').innerHTML = data.map(s => `
+                <div class="sender-item">
+                    <div><b>${s.email}</b><br><small style="color:${s.active?'#2f855a':'#c53030'}">${s.active?'Активен':'Выключен'}</small></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content: flex-end;">
+                        <button class="btn-toggle ${s.active?'btn-red':'btn-green'}" onclick="toggleSender('${s.email}')">${s.active?'Отключить':'Включить'}</button>
+                        <button class="btn-toggle btn-gray" onclick="deleteSender('${s.email}')">Удалить</button>
+                    </div>
+                </div>
+            `).join('') || '<p style="text-align:center;color:#718096;">Ящиков пока нет</p>';
+        }
+        async function addSender() { const email = document.getElementById('email').value.trim(); const password = document.getElementById('pass').value.trim(); const provider = document.getElementById('provider').value; if(!email || !password) return alert("Заполните поля!"); const res = await fetch('/add-sender', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email, password, provider})}); const r = await res.json(); if(r.status === 'error') return alert(r.message); document.getElementById('email').value = ''; document.getElementById('pass').value = ''; loadSenders(); }
+        async function toggleSender(email) { await fetch('/toggle-sender', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})}); loadSenders(); }
+        async function deleteSender(email) { if(!confirm(`Точно удалить ящик ${email}?`)) return; await fetch('/delete-sender', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})}); loadSenders(); }
+
+        async function loadKeys() {
+            const res = await fetch('/get-keys'); const data = await res.json();
+            document.getElementById('keysRows').innerHTML = data.map(k => `
+                <div class="sender-item">
+                    <div><b>${k.name}</b><br><small style="color:${k.active !== false ? '#2f855a' : '#c53030'}">${k.active !== false ? 'Активен' : 'Выключен'}</small><br><small style="color:gray;">${k.api_key.substring(0, 10)}...</small></div>
+                    <div style="display:flex; gap:10px; flex-wrap:wrap; justify-content: flex-end;">
+                        <button class="btn-toggle ${k.active !== false ? 'btn-red' : 'btn-green'}" onclick="toggleKey('${k.name}')">${k.active !== false ? 'Отключить' : 'Включить'}</button>
+                        <button class="btn-toggle btn-gray" onclick="deleteKey('${k.name}')">Удалить</button>
+                    </div>
+                </div>
+            `).join('') || '<p style="text-align:center;color:#718096;">Ключей пока нет</p>';
+        }
+        
+        async function loadKeysForStatus() {
+            const res = await fetch('/get-keys'); const data = await res.json();
+            const activeKeys = data.filter(k => k.active !== false);
+            allApiKeys = activeKeys.map(k => k.api_key); 
+            const st = document.getElementById('keys_status');
+            if (allApiKeys.length === 0) { st.innerHTML = '❌ Нет активных ключей! Включите их или добавьте новые во вкладке "API Ключи".'; st.style.color = '#c53030';
+            } else { st.innerHTML = `✅ Доступно активных ключей: <b>${allApiKeys.length} шт.</b><br>Система будет автоматически тасовать их.`; st.style.color = '#2f855a'; }
+        }
+
+        async function addKey() { const name = document.getElementById('key_name').value.trim(); const api_key = document.getElementById('key_value').value.trim(); if(!name || !api_key) return alert("Заполните поля!"); await fetch('/add-key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name, api_key})}); document.getElementById('key_name').value = ''; document.getElementById('key_value').value = ''; loadKeys(); loadKeysForStatus(); }
+        async function toggleKey(name) { await fetch('/toggle-key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}); loadKeys(); loadKeysForStatus(); }
+        async function deleteKey(name) { if(!confirm(`Удалить ключ "${name}"?`)) return; await fetch('/delete-key', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({name})}); loadKeys(); loadKeysForStatus(); }
+
+        async function run() {
+            if(allApiKeys.length === 0) return alert("Сначала добавьте и включите API Ключи!");
+            const file = document.getElementById('excelFile').files[0];
+            const subj = document.getElementById('subject').value;
+            const body = document.getElementById('body').value;
+            const aiRole = document.getElementById('ai_role').value;
+            const senderName = document.getElementById('sender_name').value;
+            const senderPosition = document.getElementById('sender_position').value;
+            const min = parseInt(document.getElementById('min_d').value) || 15;
+            const max = parseInt(document.getElementById('max_d').value) || 30;
+            
+            if(!file || !subj || !body) return alert("Заполните все данные рассылки!");
+
+            document.getElementById('btn-start').style.display = 'none';
+            document.getElementById('controls').style.display = 'flex';
+            isPaused = false; isStopped = false;
+            document.getElementById('btn-pause').innerHTML = '⏸ Пауза';
+            document.getElementById('btn-pause').style.background = '#eab308';
+
+            const st = document.getElementById('status');
+            st.style.display = 'block'; st.style.background = '#f5f3ff'; st.style.color = 'black'; st.innerText = "⏳ Анализ Excel...";
+
+            let activePool = [...allApiKeys];
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const rows = XLSX.utils.sheet_to_json(XLSX.read(e.target.result, {type:'array'}).Sheets[XLSX.read(e.target.result, {type:'array'}).SheetNames[0]]);
+                let ok=0, err=0, skipped=0;
+
+                for(let i=0; i<rows.length; i++) {
+                    while(isPaused && !isStopped) { await new Promise(r => setTimeout(r, 500)); }
+                    if(isStopped) { st.innerHTML = `🛑 <b>РАССЫЛКА ОСТАНОВЛЕНА!</b><br>✅ Успешно: ${ok} | ❌ Ошибок: ${err} | ⏭ Пропущено: ${skipped}`; st.style.background = '#fee2e2'; break; }
+
+                    const row = rows[i];
+                    const to = row['email'] || row['Email'] || row['E-mail'] || row['e-mail'] || row['Почта'] || Object.values(row).find(v => typeof v === 'string' && v.includes('@'));
+                    if(!to) { skipped++; continue; }
+
+                    let compName = "";
+                    for (let key in row) {
+                        let k = key.toLowerCase();
+                        if (k.includes('компан') || k.includes('наименован') || k.includes('назван') || k.includes('организ')) {
+                            if(!compName) compName = row[key];
+                        }
+                    }
+
+                    // --- ЖЕСТКИЙ ПАРСЕР ФИО ---
+                    let f="", i_name="", o="", full_fio="";
+                    for (let key in row) {
+                        let k = key.toLowerCase();
+                        let val = row[key] ? String(row[key]).trim() : "";
+                        if (!val) continue;
+
+                        if (k === 'фамилия' || k.includes('фамил')) f = val;
+                        else if ((k === 'имя' || k.includes('имя')) && !k.includes('компан') && !k.includes('наименован')) i_name = val;
+                        else if (k === 'отчество' || k.includes('отчест')) o = val;
+                        else if (k.includes('фио') || k === 'name' || (k.includes('руковод') && !k.includes('должност'))) {
+                            if(!full_fio) full_fio = val;
+                        }
+                    }
+                    
+                    let personName = "";
+                    let parts = [];
+                    if(f) parts.push(f); 
+                    if(i_name) parts.push(i_name); 
+                    if(o) parts.push(o);
+                    
+                    if (parts.length > 0) {
+                        personName = parts.join(' ');
+                    } else if (full_fio) {
+                        personName = full_fio;
+                    }
+
+                    if (activePool.length === 0) activePool = [...allApiKeys]; 
+                    let randomKey = activePool[Math.floor(Math.random() * activePool.length)];
+
+                    st.innerHTML = `✨ Пишем письмо для ${to}... (${i+1}/${rows.length})<br><span style="font-size:0.8rem; color:gray;">🔑 Используем случайный ключ...</span>`;
+                    
+                    try {
+                        const res = await fetch('/send-single', {
+                            method:'POST', headers:{'Content-Type':'application/json'},
+                            body:JSON.stringify({
+                                to_email: String(to).trim(), name: String(personName), company: String(compName), 
+                                subject: subj, body_template: body, ai_role: aiRole, sender_name: senderName, 
+                                sender_position: senderPosition, api_key: randomKey 
+                            })
+                        });
+                        const r = await res.json();
+                        
+                        // ТЕПЕРЬ ЛОВИМ ЛЮБЫЕ СБОИ КЛЮЧА
+                        if(r.status === 'error' && (r.message.includes('ЛИМИТ ИСЧЕРПАН ИЛИ СБОЙ') || r.message.includes('ЛИМИТ ИСЧЕРПАН НА ВСЕХ'))) {
+                            activePool = activePool.filter(k => k !== randomKey);
+                            
+                            if (activePool.length > 0) {
+                                st.innerHTML = `⚠️ Ключ или сеть сбойнули! Убираем в резерв.<br>🔄 В пуле осталось: ${activePool.length} шт. Пробуем другой...`;
+                                st.style.background = '#fef3c7'; 
+                                await new Promise(resolve => setTimeout(resolve, 2000));
+                                i--; continue; 
+                            } else {
+                                st.innerHTML = `🔄 <b>Все ключи устали! Глубокий сон 3 минуты...</b><br>Сбрасываем лимиты Google...`;
+                                st.style.background = '#e2e8f0'; 
+                                for(let wait=180; wait>0; wait--) {
+                                    if(isStopped) break;
+                                    st.innerHTML = `🔄 <b>Охлаждение серверов...</b> ${wait} сек.`;
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                }
+                                activePool = [...allApiKeys]; 
+                                if(isStopped) continue; 
+                                i--; continue; 
+                            }
+                        }
+
+                        if(r.status === 'success') {
+                            ok++; 
+                            if(i < rows.length-1) {
+                                const w = Math.floor(Math.random()*(max-min+1)+min);
+                                for(let s=w; s>0; s--) {
+                                    if(isStopped) break;
+                                    while(isPaused && !isStopped) { await new Promise(r => setTimeout(r, 500)); } 
+                                    if(isStopped) break;
+                                    st.innerHTML = `✅ Успешно! Отправлено с: ${r.sender}<br>⏱ Пауза анти-спама: ${s} сек...`;
+                                    st.style.background = '#ebf8ff';
+                                    await new Promise(resolve => setTimeout(resolve, 1000));
+                                }
+                            }
+                        } else { 
+                            err++; 
+                            st.innerHTML = `❌ Ошибка отправки на ${to}:<br><span style="color:red; font-size: 0.8em;">${r.message}</span>`;
+                            st.style.background = '#fff5f5';
+                            await new Promise(resolve => setTimeout(resolve, 4000)); 
+                        }
+                    } catch (error) { 
+                        err++; st.innerHTML = `❌ Ошибка сети!`; await new Promise(resolve => setTimeout(resolve, 3000));
+                    }
+                }
+                
+                if(!isStopped) {
+                    st.innerHTML = `🏁 Готово!<br>✅ Успешно: ${ok} | ❌ Ошибок: ${err} | ⏭ Пропущено: ${skipped}`;
+                    st.style.background = ok > 0 ? '#f0fff4' : '#fff5f5';
+                }
+                
+                document.getElementById('btn-start').style.display = 'block';
+                document.getElementById('controls').style.display = 'none';
+            };
+            reader.readAsArrayBuffer(file);
+        }
+        loadKeysForStatus();
+    </script>
+</body>
+</html>
