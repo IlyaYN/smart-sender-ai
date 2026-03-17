@@ -22,5 +22,5 @@
 
 1. Клонируйте репозиторий:
    ```bash
-   git clone [https://github.com/ВАШ_НИК/smart-sender-ai.git](https://github.com/IlyaYN/smart-sender-ai.git)
+   git clone [https://github.com/IlyaYN/smart-sender-ai.git](https://github.com/IlyaYN/smart-sender-ai.git)
    cd smart-sender-ai
